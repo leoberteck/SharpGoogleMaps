@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+        <meta charset="utf-8">
+        <title>Displaying text directions with <code>setPanel()</code></title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+        <style>
+            html, body {
+                height: 100%;
+                margin: 0;
+                padding: 0;
+                font-family: 'Roboto','sans-serif';
+            }
+
+            #map {
+                height: 100%;
+                transition: margin-right .5s;
+                margin-right: 50px;
+            }
+            
+            #right-panel {
+                width: 50px;
+                position: fixed;
+                z-index: 1;
+                top: 0;
+                right: 0;
+                height: 100%;
+                background-color: #4285F4;
+                color:#000;
+                transition: 0.5s;
+            }
+            
+                #right-panel select, #right-panel input {
+                    font-size: 15px;
+                }
+
+                #right-panel select {
+                    width: 100%;
+                }
+
+                #right-panel i {
+                    font-size: 12px;
+                }
+            
+            .rigth_panel_border{
+            }
+            
+            .rigth_panel_main{
+                background-color: #fff;
+                margin-left: 50px;
+                margin-top: -10px;
+                line-height: 30px;
+                height: 100%;
+                overflow-x: auto;
+            }
+            
+            .large-icon{
+                font-size: 50px;
+                color: white;
+            }
+        }
+    </style>
+  </head>
+  <body>
+    <div id="right-panel" class="rigth_panel_border">
+        <div class="pull-left large-icon" >
+            <span class="glyphicon glyphicon-map-marker" ></span>
+        </div>
+        <div id="navigationPanel" class="rigth_panel_main">
+        </div>
+    </div>
+    <div id="map"></div>
+    <script>
+        $(document).ready(function(){
+            $('.rigth_panel_border').click(function(){
+                var hidden = $('#right-panel');
+                var map = $('#map');
+                if (hidden.hasClass('visible')){
+                    hidden.width('50px');
+                    hidden.removeClass('visible');
+                    map.css('margin-rigth', '50px');
+                } else {
+                    hidden.width('500px');
+                    hidden.addClass('visible');
+                    map.css('margin-rigth', '500px');
+                }
+            });
+        });
+    </script>
+    <script>
+        var mapsApi
+        
+        function initMap() {
+            mapsApi = new constructMap
+        }
+        
+        function constructMap(){
+            this.directionsDisplay = new google.maps.DirectionsRenderer
+            this.directionsService = new google.maps.DirectionsService
+            this.geocoder = new google.maps.Geocoder
+            this.map = map = new google.maps.Map(document.getElementById('map'), {
+                zoom: 7,
+                center: {lat: 41.85, lng: -87.65}
+            })
+            this.directionsDisplay.setMap(map)
+            this.directionsDisplay.setPanel(document.getElementById('navigationPanel'))
+            this.markersHashSet = {}
+        }
+        
+        function calculateAndDisplayRoute(start, end) {
+            mapsApi.directionsService.route({
+                origin: start,
+                destination: end,
+                travelMode: google.maps.TravelMode.DRIVING
+            }, function(response, status) {
+                if (status === google.maps.DirectionsStatus.OK) {
+                    mapsApi.directionsDisplay.setDirections(response)
+                } else {
+                    window.alert('Directions request failed due to ' + status)
+                }
+            });
+        }
+        
+        function addPin(address, center){
+            mapsApi.geocoder.geocode( { 'address': address}, function(results, status) {
+                if (status == google.maps.GeocoderStatus.OK) {
+                    var result = results[0]
+                    if(center)
+                    {
+                        map.setCenter(result.geometry.location)
+                    }
+                    var marker = new google.maps.Marker({
+                        map: map,
+                        position: result.geometry.location
+                    });
+                    //Add marker to the hashSet
+                    mapsApi.markersHashSet[result.place_id] = marker
+                    //Notify c# code
+                    notifyExternal("addPin", { place_id : result.place_id })
+                } else {
+                    notifyExternal("addPin", "FAIL")
+                    alert('Geocode was not successful for the following reason: ' + status)
+                }
+            });
+        }
+        
+        function removePin(place_id)
+        {
+            var marker = mapsApi.markersHashSet[place_id]
+            if(marker){
+                marker.setMap(null)
+                delete mapsApi.markersHashSet[place_id]
+            }
+        }
+        
+        function notifyExternal(sender, parameter){
+            var _parameter = {
+                sender : sender,
+                parameter : JSON.stringify(parameter),
+            }
+            window.external.notify(JSON.stringify(_parameter))
+        }
+    </script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=API_KEY&callback=initMap" async defer></script>
+  </body>
+</html>
